@@ -165,6 +165,7 @@
     "history": "^5.3.0",
     "immer": "^9.0.7",
     "jdenticon": "^3.1.1",
+    "kysely": "^0.19.3",
     "lodash": "^4.17.21",
     "medium-json-feed": "^0.0.3",
     "mousetrap": "^1.6.5",

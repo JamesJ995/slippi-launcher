@@ -10878,6 +10878,11 @@ klona@^2.0.4:
   resolved "https://registry.yarnpkg.com/klona/-/klona-2.0.5.tgz#d166574d90076395d9963aa7a928fabb8d76afbc"
   integrity sha512-pJiBpiXMbt7dkzXe8Ghj/u4FfXOOa98fPW+bihOJ4SjnoijweJrNThJfd3ifXpXhREjpoF2mZVH1GfS9LV3kHQ==
 
+kysely@^0.19.3:
+  version "0.19.3"
+  resolved "https://registry.yarnpkg.com/kysely/-/kysely-0.19.3.tgz#c103dccf464a86a33034050e1f1fc57894644118"
+  integrity sha512-hyk0zVbrT5Yx9P/IpI9zG5CFk1DXZ1d9EQsJ4UY9mp34J50r+7H96O8pmwP81yhVnmakTe93ylNq88Bd+B450w==
+
 language-subtag-registry@~0.3.2:
   version "0.3.21"
   resolved "https://registry.yarnpkg.com/language-subtag-registry/-/language-subtag-registry-0.3.21.tgz#04ac218bea46f04cb039084602c6da9e788dd45a"
