@@ -3,10 +3,10 @@ import type { Generated, Insertable, Selectable, Updateable } from "kysely";
 export type GamesTable = {
   id: Generated<number>;
   file_id: number; // references files table
+  player_count: number;
   start_time: string | null;
   last_frame: number | null;
   is_teams: boolean | null;
-  player_count: number;
   stage: number | null;
   game_mode: number | null;
 };

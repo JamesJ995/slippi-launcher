@@ -10,9 +10,9 @@ export type PlayersTable = {
   type: number | null;
   team_id: number | null;
   nametag: string | null;
-  display_name: string;
-  connect_code: string;
-  slippi_user_id: string;
+  display_name: string | null;
+  connect_code: string | null;
+  slippi_user_id: string | null;
 };
 
 export type PlayersRow = Selectable<PlayersTable>;

@@ -3,7 +3,15 @@
 // when in Node worker context.
 
 // TODO: Make electron-log work somehow
-import Database from "better-sqlite3";
+import type { GameStartType, MetadataType, PlayerType } from "@slippi/slippi-js";
+import { findAllFilesInFolder, insertFile, pruneFolders, removeFiles } from "database/files/files.repository";
+import { insertGame } from "database/games/games.repository";
+import type { InsertableGamesRow } from "database/games/games.table";
+import { initDatabase } from "database/initDatabase";
+import { insertPlayer } from "database/players/players.repository";
+import type { InsertablePlayersRow } from "database/players/players.table";
+import type { Database } from "database/types";
+import type { Kysely } from "kysely";
 import path from "path";
 import type { ModuleMethods } from "threads/dist/types/master";
 import { expose } from "threads/worker";
@@ -12,10 +20,9 @@ import type { FileResult } from "./types";
 
 export interface Methods {
   dispose(): Promise<void>;
-  connect(path: string): void;
+  connect(path: string): Promise<void>;
   getFolderFiles(folder: string): Promise<string[]>;
   getFolderReplays(folder: string): Promise<FileResult[]>;
-  getFullReplay(file: string): Promise<FileResult | null>;
   saveReplays(replays: FileResult[]): Promise<void>;
   deleteReplays(files: string[]): Promise<void>;
   pruneFolders(existingFolders: string[]): Promise<void>;
@@ -23,26 +30,7 @@ export interface Methods {
 
 export type WorkerSpec = ModuleMethods & Methods;
 
-const createTablesSql = `
-CREATE TABLE IF NOT EXISTS replays (
-    fullPath      TEXT PRIMARY KEY,
-    name          TEXT,
-    folder        TEXT
-);
-
-CREATE INDEX IF NOT EXISTS folder_idx ON replays(folder);
-
-CREATE TABLE IF NOT EXISTS replay_data (
-    fullPath      TEXT PRIMARY KEY,
-    startTime     TEXT,
-    lastFrame     INTEGER,
-    settings      JSON,
-    metadata      JSON,
-    FOREIGN KEY (fullPath) REFERENCES replays(fullPath) ON DELETE CASCADE
-);
-`;
-
-let db: Database.Database;
+let db: Kysely<Database>;
 
 const parseRow = (row: any) => {
   return {
@@ -57,97 +45,113 @@ const parseRow = (row: any) => {
   } as FileResult;
 };
 
-/**
- * This retrieves all the replays in a given folder and returns their full paths.
- */
-const getFolderFiles = async (folder: string): Promise<string[]> => {
-  const files = db
-    .prepare(
-      `
-      SELECT fullPath
-      FROM replays 
-      WHERE folder = ?`,
-    )
-    .all(folder);
-  return files ? files.map((f: any) => f.fullPath) : [];
-};
-
-const getFolderReplays = async (folder: string) => {
-  const docs = db
-    .prepare(
-      `
+const methods: WorkerSpec = {
+  async dispose() {
+    // Clean up anything
+    if (db) {
+      await db.destroy();
+    }
+  },
+  async disconnect() {
+    await db.destroy();
+  },
+  async connect(path: string) {
+    db = await initDatabase({
+      databasePath: path,
+      migrationFolder: "./migrations",
+      isDevelopment: true,
+      enableLogging: true,
+    });
+  },
+  async getFolderFiles(folder: string): Promise<string[]> {
+    return findAllFilesInFolder(db, folder);
+  },
+  async getFolderReplays(folder: string) {
+    const docs = db
+      .prepare(
+        `
     SELECT fullPath, name, folder, startTime, lastFrame, 
     settings, metadata 
     FROM replays 
     JOIN replay_data USING (fullPath)
     WHERE folder = ?
     ORDER by startTime DESC`,
-    )
-    .all(folder);
-  const files = docs.map(parseRow);
-  return docs ? files : [];
-};
+      )
+      .all(folder);
+    const files = docs.map(parseRow);
+    return docs ? files : [];
+  },
+  async saveReplays(replays: FileResult[]) {
+    await db.transaction().execute(async (trx) => {
+      const insertReplayPromises = replays.map(async (replay) => {
+        const { name, fullPath, settings, metadata } = replay;
 
-const getFullReplay = async (file: string) => {
-  const doc = db.prepare("SELECT * from replays JOIN replay_data USING (fullPath) WHERE fullPath = ?").get(file);
-  return parseRow(doc);
-};
+        const folder = path.dirname(fullPath);
+        const { id: fileId } = await insertFile(trx, {
+          full_path: fullPath,
+          name,
+          folder,
+        });
 
-const saveReplays = async (replays: FileResult[]) => {
-  db.transaction(() => {
-    let insert = db.prepare(`INSERT INTO replays(fullPath, name, folder) VALUES (?, ?, ?)`);
-    const docs1 = replays.map((replay: FileResult) => {
-      const folder = path.dirname(replay.fullPath);
-      return [replay.fullPath, replay.name, folder];
+        const { id: gameId } = await insertGame(trx, {
+          ...mapSettingsToInsertableGameRow(settings, metadata),
+          file_id: fileId,
+        });
+
+        const insertPlayerPromises = settings.players.map(async (player) => {
+          await insertPlayer(trx, {
+            ...mapPlayerToInsertablePlayerRow(player, settings, metadata),
+            game_id: gameId,
+          });
+        });
+        await Promise.all(insertPlayerPromises);
+      });
+
+      await Promise.all(insertReplayPromises);
     });
-    docs1.forEach((d) => insert.run(...d));
-
-    insert = db.prepare(`
-      INSERT INTO replay_data(
-        fullPath, startTime, lastFrame, 
-        settings, metadata)
-        VALUES (?, ?, ?, ?, ?)`);
-    const docs2 = replays.map((replay: FileResult) => [
-      replay.fullPath,
-      replay.startTime,
-      replay.lastFrame,
-      JSON.stringify(replay.settings),
-      JSON.stringify(replay.metadata),
-    ]);
-    docs2.forEach((d) => insert.run(...d));
-  })();
-};
-
-const deleteReplays = async (files: string[]) => {
-  const qfmt = files.map(() => "?").join(",");
-  db.prepare(`DELETE FROM replays WHERE fullPath IN (${qfmt})`).run(files);
-};
-
-const pruneFolders = async (existingFolders: string[]) => {
-  const qfmt = existingFolders.map(() => "?").join(", ");
-  db.prepare(`DELETE FROM replays WHERE folder NOT IN (${qfmt})`).run(existingFolders);
-};
-
-const methods: WorkerSpec = {
-  async dispose() {
-    // Clean up anything
-    if (db) {
-      db.close();
-    }
   },
-  disconnect() {
-    db.close();
+  async deleteReplays(files: string[]) {
+    await removeFiles(db, files);
   },
-  connect(path: string) {
-    db = new Database(path);
-    db.exec(createTablesSql);
+  async pruneFolders(existingFolders: string[]) {
+    await pruneFolders(db, existingFolders);
   },
-  getFolderFiles,
-  getFolderReplays,
-  getFullReplay,
-  saveReplays,
-  deleteReplays,
-  pruneFolders,
 };
 
 expose(methods);
+
+function mapSettingsToInsertableGameRow(
+  settings: GameStartType,
+  metadata?: MetadataType | null,
+): Omit<InsertableGamesRow, "file_id"> {
+  return {
+    player_count: settings.players.length,
+    start_time: metadata?.startAt,
+    last_frame: metadata?.lastFrame,
+    is_teams: settings.isTeams,
+    stage: settings.stageId,
+    game_mode: settings.gameMode,
+  };
+}
+
+function mapPlayerToInsertablePlayerRow(
+  player: PlayerType,
+  settings: GameStartType,
+  metadata?: MetadataType | null,
+): Omit<InsertablePlayersRow, "game_id"> {
+  const displayName = metadata?.players?.[player.playerIndex].names?.netplay ?? player.displayName;
+  const connectCode = metadata?.players?.[player.playerIndex].names?.code ?? player.connectCode;
+
+  return {
+    port: player.port,
+    character_id: player.characterId,
+    character_color: player.characterColor,
+    start_stocks: player.startStocks,
+    type: player.type,
+    team_id: settings.isTeams ? player.teamId : null,
+    nametag: player.nametag,
+    display_name: displayName || null,
+    connect_code: connectCode || null,
+    slippi_user_id: player.userId || null,
+  };
+}
