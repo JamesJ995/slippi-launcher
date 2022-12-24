@@ -11,6 +11,11 @@
 ; The result of whether we should install drivers or not
 var InstallType
 
+!macro customHeader
+  ShowInstDetails show
+  ShowUninstDetails show
+!macroend
+
 !macro customPageAfterChangeDir
   Page custom InstTypePageCreate InstTypePageLeave
   Function InstTypePageCreate
@@ -54,13 +59,23 @@ var InstallType
 !macro customInstall
   ; Add slippi URI Handling
   DetailPrint "Register slippi URI Handler"
-  DeleteRegKey HKCR "slippi"
-  WriteRegStr HKCR "slippi" "" "URL:slippi"
-  WriteRegStr HKCR "slippi" "URL Protocol" ""
-  WriteRegStr HKCR "slippi\DefaultIcon" "" "$INSTDIR\${APP_EXECUTABLE_FILENAME}"
-  WriteRegStr HKCR "slippi\shell" "" ""
-  WriteRegStr HKCR "slippi\shell\Open" "" ""
-  WriteRegStr HKCR "slippi\shell\Open\command" "" "$\"$INSTDIR\${APP_EXECUTABLE_FILENAME}$\" $\"%1$\""
+  ${If} $installMode == "all"
+    DeleteRegKey HKCR "slippi"
+    WriteRegStr HKCR "slippi" "" "URL:slippi"
+    WriteRegStr HKCR "slippi" "URL Protocol" ""
+    WriteRegStr HKCR "slippi\DefaultIcon" "" "$INSTDIR\${APP_EXECUTABLE_FILENAME}"
+    WriteRegStr HKCR "slippi\shell" "" ""
+    WriteRegStr HKCR "slippi\shell\Open" "" ""
+    WriteRegStr HKCR "slippi\shell\Open\command" "" "$\"$INSTDIR\${APP_EXECUTABLE_FILENAME}$\" $\"%1$\""
+  ${Else}
+    DeleteRegKey HKCU "SOFTWARE\Classes\slippi"
+    WriteRegStr HKCU "SOFTWARE\Classes\slippi" "" "URL:slippi"
+    WriteRegStr HKCU "SOFTWARE\Classes\slippi" "URL Protocol" ""
+    WriteRegStr HKCU "SOFTWARE\Classes\slippi\DefaultIcon" "" "$INSTDIR\${APP_EXECUTABLE_FILENAME}"
+    WriteRegStr HKCU "SOFTWARE\Classes\slippi\shell" "" ""
+    WriteRegStr HKCU "SOFTWARE\Classes\slippi\shell\Open" "" ""
+    WriteRegStr HKCU "SOFTWARE\Classes\slippi\shell\Open\command" "" "$\"$INSTDIR\${APP_EXECUTABLE_FILENAME}$\" $\"%1$\""
+  ${EndIf}
 
   ; Check if we should also install the GC drivers
   ${If} $InstallType == INSTALL
@@ -68,4 +83,20 @@ var InstallType
     File /oname=$PLUGINSDIR\${GC_INSTALLER} "${BUILD_RESOURCES_DIR}\${GC_INSTALLER}"
     ExecShellWait "" "$PLUGINSDIR\${GC_INSTALLER}" SW_HIDE
   ${EndIf}
+!macroend
+
+!macro customUnInstall
+  ; Clean up Slippi URI Handling
+  DeleteRegKey HKCR "slippi"
+  DeleteRegKey HKCU "SOFTWARE\Classes\slippi"
+
+  MessageBox MB_YESNO|MB_DEFBUTTON2|MB_ICONQUESTION "Would you like to also clear Slippi Launcher and Slippi Dolphin application data?" \
+    /SD IDNO IDNO Done IDYES Accepted
+
+  Accepted:
+    RMDir /r "$APPDATA\${APP_FILENAME}"
+    !ifdef APP_PRODUCT_FILENAME
+      RMDir /r "$APPDATA\${APP_PRODUCT_FILENAME}"
+    !endif
+  Done:
 !macroend

@@ -14,14 +14,14 @@ import type { AuthUser } from "@/services/auth/types";
 
 import { ActivateOnlineDialog } from "./ActivateOnlineDialog";
 import { NameChangeDialog } from "./NameChangeDialog";
-import { UserInfo } from "./UserInfo";
+import { UserInfo } from "./UserInfo/UserInfo";
 
 export const UserMenu: React.FC<{
   user: AuthUser;
   handleError: (error: any) => void;
 }> = ({ user, handleError }) => {
   const { authService } = useServices();
-  const playKey = useAccount((store) => store.playKey);
+  const userData = useAccount((store) => store.userData);
   const displayName = useAccount((store) => store.displayName);
   const loading = useAccount((store) => store.loading);
   const serverError = useAccount((store) => store.serverError);
@@ -54,7 +54,7 @@ export const UserMenu: React.FC<{
   const generateMenuItems = (): IconMenuItem[] => {
     const items: IconMenuItem[] = [];
 
-    if (!playKey && !serverError) {
+    if (!userData?.playKey && !serverError) {
       items.push({
         onClick: () => {
           closeMenu();
@@ -65,7 +65,7 @@ export const UserMenu: React.FC<{
       });
     }
 
-    if (playKey) {
+    if (userData) {
       items.push({
         onClick: () => {
           closeMenu();
@@ -87,14 +87,21 @@ export const UserMenu: React.FC<{
     return items;
   };
 
+  let errMessage: string | undefined = undefined;
+  if (serverError) {
+    errMessage = "Slippi server error";
+  } else if (!userData?.playKey) {
+    errMessage = "Online activation required";
+  }
+
   return (
     <div>
       <ButtonBase onClick={handleClick}>
         <UserInfo
           displayName={displayName}
           displayPicture={user.displayPicture}
-          playKey={playKey}
-          serverError={serverError}
+          connectCode={userData?.playKey?.connectCode}
+          errorMessage={errMessage}
           loading={loading}
         />
       </ButtonBase>
