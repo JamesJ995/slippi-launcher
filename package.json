@@ -173,6 +173,8 @@
     "immer": "^9.0.7",
     "is-ip": "^5.0.0",
     "jdenticon": "^3.1.1",
+    "kysely": "^0.25.0",
+    "kysely-migration-cli": "^0.2.1",
     "lodash": "^4.17.21",
     "medium-json-feed": "^0.0.3",
     "moment": "^2.29.4",
@@ -196,6 +198,7 @@
     "react-window": "^1.8.6",
     "semver": "^7.5.4",
     "stun": "^2.1.0",
+    "synchronized-ts": "^1.0.0",
     "wget-improved": "^3.3.1",
     "zustand": "^3.2.0"
   }
