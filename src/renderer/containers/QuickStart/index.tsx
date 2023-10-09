@@ -11,7 +11,6 @@ import { platformTitleBarStyles } from "@/styles/platformTitleBarStyles";
 
 import { AcceptRulesStep } from "./AcceptRulesStep";
 import { ActivateOnlineStep } from "./ActivateOnlineStep";
-import { ImportDolphinSettingsStep } from "./ImportDolphinSettingsStep";
 import { IsoSelectionStep } from "./IsoSelectionStep";
 import { LoginStep } from "./LoginStep";
 import { SetupCompleteStep } from "./SetupCompleteStep";
@@ -43,8 +42,6 @@ const getStepContent = (step: QuickStartStep | null) => {
       return <AcceptRulesStep />;
     case QuickStartStep.ACTIVATE_ONLINE:
       return <ActivateOnlineStep />;
-    case QuickStartStep.MIGRATE_DOLPHIN:
-      return <ImportDolphinSettingsStep />;
     case QuickStartStep.SET_ISO_PATH:
       return <IsoSelectionStep />;
     case QuickStartStep.COMPLETE:
