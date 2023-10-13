@@ -8,6 +8,7 @@ export type FileResult = {
   lastFrame: number | null;
   metadata: MetadataType | null;
   winnerIndices: number[];
+  size: number;
 };
 
 export type FolderResult = {
