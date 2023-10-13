@@ -2,7 +2,7 @@ import DatabaseConstructor from "better-sqlite3";
 import { Kysely, SqliteDialect } from "kysely";
 import { Mutex } from "synchronized-ts";
 
-import { migrateToLatest } from "./migration";
+// import { migrateToLatest } from "./migration";
 import type { Database } from "./types"; // schema
 
 const synchronizeDBCreation = new Mutex<Kysely<Database>>();
@@ -24,7 +24,7 @@ async function getKyselyDatabase(databaseName: string): Promise<Kysely<Database>
       dialect,
     });
 
-    await migrateToLatest(db);
+    // await migrateToLatest(db);
 
     Databases[databaseName] = db;
 

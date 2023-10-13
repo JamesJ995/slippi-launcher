@@ -28,6 +28,7 @@ export async function loadFolder(
 
   // Get already processed files from database
   const database = await getKyselyDatabase(path.resolve(folder, ".index.sqlite3"));
+  // console.log(database);
   const replaysIndexed = await loadReplays(database, fullSlpPaths);
   const totalBytesIndexed = replaysIndexed.reduce((acc, replay) => acc + replay.size, 0);
 
