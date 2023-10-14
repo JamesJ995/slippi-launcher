@@ -11,7 +11,7 @@ export class FileSystemReplayProvider implements ReplayProvider {
     this.replayBrowserWorker = createReplayWorker();
   }
 
-  public init(): void {
+  public async init(): Promise<void> {
     // Do nothing
   }
 

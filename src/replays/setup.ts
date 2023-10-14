@@ -1,4 +1,5 @@
 import { app } from "electron";
+import log from "electron-log";
 import path from "path";
 
 import { DatabaseReplayProvider } from "./database_replay_provider/database_replay_provider";
@@ -16,11 +17,12 @@ import type { Progress, ReplayProvider } from "./types";
 
 export default function setupReplaysIpc({ enableReplayDatabase }: { enableReplayDatabase?: boolean }) {
   const treeService = new FolderTreeService();
-  const replayDatabaseFolder = path.join(app.getPath("userData"), "replay_database.sqlite3");
+  const replayDatabasePath = path.join(app.getPath("userData"), "replay_database.sqlite3");
   const replayProvider: ReplayProvider = enableReplayDatabase
-    ? new DatabaseReplayProvider(replayDatabaseFolder)
+    ? new DatabaseReplayProvider(replayDatabasePath)
     : new FileSystemReplayProvider();
-  replayProvider.init();
+
+  replayProvider.init().catch(log.error);
 
   ipc_initializeFolderTree.main!.handle(async ({ folders }) => {
     return treeService.init(folders);
@@ -35,7 +37,7 @@ export default function setupReplaysIpc({ enableReplayDatabase }: { enableReplay
       ipc_loadProgressUpdatedEvent.main!.trigger(progress).catch(console.warn);
     };
 
-    return replayProvider.loadFolder(folderPath, onProgress);
+    return await replayProvider.loadFolder(folderPath, onProgress);
   });
 
   ipc_calculateGameStats.main!.handle(async ({ filePath }) => {
